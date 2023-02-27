@@ -384,12 +384,14 @@ class KataGoEngine(BaseEngine):
         report_every: Optional[float] = None,
     ):
         nodes = analysis_node.nodes_from_root
-        moves = [m for node in nodes for m in node.moves]
-        initial_stones = [m for node in nodes for m in node.placements]
-        clear_placements = [m for node in nodes for m in node.clear_placements]
-        if clear_placements:  # TODO: support these
-            self.katrain.log(f"Not analyzing node {analysis_node} as there are AE commands in the path", OUTPUT_DEBUG)
-            return
+        for ni in range(len(nodes)-1,-1,-1):
+            if nodes[ni].placements or nodes[ni].clear_placements:
+                initial_stones = []
+                moves =  [m for node in nodes[ni+1:] for m in node.moves]
+                break
+        else:
+            initial_stones = []
+            moves = [m for node in nodes for m in node.moves]
 
         if next_move:
             moves.append(next_move)
