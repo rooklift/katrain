@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.12']
+        python-version: ['3.9', '3.12', '3.13']
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
       uses: ./.github/actions/setup-python-uv
       with:
         python-version: ${{ matrix.python-version }}
-        sync-groups: test
+        sync-groups: dev
 
     - name: Run tests
       run: uv run pytest tests
@@ -105,7 +105,15 @@ jobs:
 
   build-macos:
     needs: [prepare, test]
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
     env:
       KATRAIN_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
@@ -152,14 +160,14 @@ jobs:
                        -srcfolder dmg_temp \
                        -ov \
                        -format UDZO \
-                       "KaTrain-${{ env.KATRAIN_VERSION }}.dmg"
+                       "KaTrain-${{ env.KATRAIN_VERSION }}-${{ matrix.arch }}.dmg"
         mkdir -p osx_app
-        mv "KaTrain-${{ env.KATRAIN_VERSION }}.dmg" osx_app/
+        mv "KaTrain-${{ env.KATRAIN_VERSION }}-${{ matrix.arch }}.dmg" osx_app/
 
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: KaTrainMacOS-${{ env.KATRAIN_VERSION }}
+        name: KaTrainMacOS-${{ env.KATRAIN_VERSION }}-${{ matrix.arch }}
         path: osx_app
 
   # This job publishes the package to PyPI.
@@ -174,15 +182,14 @@ jobs:
     - name: Setup Python and uv
       uses: ./.github/actions/setup-python-uv
       with:
-        sync-groups: dev,test
+        sync-groups: dev
 
     - name: Finalize I18N for publishing
       run: uv run python i18n.py
 
     - name: Build and publish to PyPI
       env:
-        # Assumes you are using trusted publishing or a PYPI_TOKEN secret
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
       run: |
         uv build
         uv publish --verbose
@@ -213,7 +220,8 @@ jobs:
           
           ### Downloads
           - **Windows**: Download the `.exe` files or `.zip` folders.
-          - **macOS**: Download the `.dmg` file.
+          - **macOS (Apple Silicon)**: Download the `arm64` `.dmg` file.
+          - **macOS (Intel)**: Download the `x86_64` `.dmg` file.
         files: ./artifacts/*
         draft: true
         prerelease: false

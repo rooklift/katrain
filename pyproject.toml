@@ -1,9 +1,9 @@
 [project]
 name = "KaTrain"
-dynamic = ["version"]
+version = "1.17.1"
 description = "Go/Baduk/Weiqi playing and teaching app with a variety of AIs"
 authors = [{ name = "Sander Land" }]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.9,<3.14"
 readme = "README.md"
 license = "MIT"
 classifiers = [
@@ -35,13 +35,13 @@ dev = [
     "black>=24.8.0,<25",
     "polib>=1.2.0,<2",
     "pyinstaller>=6.14.1",
+    "pytest>=8.3.2,<9",
+    "tomli>=1.2.0 ; python_version < '3.11'",
 ]
-test = ["pytest>=8.3.2,<9"]
 
 [tool.uv]
 default-groups = [
     "dev",
-    "test",
 ]
 
 [tool.black]
@@ -53,16 +53,6 @@ include = ["katrain"]
 [tool.hatch.build.targets.wheel]
 include = ["katrain"]
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-
-[tool.uv-dynamic-versioning]
-fallback-version = "0.0.0"
-
-[tool.uv-dynamic-versioning.from-file]
-source = "katrain/core/constants.py"
-pattern = "^VERSION\\s*=\\s*\"(.*)\""
-
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
