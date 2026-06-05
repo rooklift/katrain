@@ -15,11 +15,16 @@
 
 The easiest way to install is probably [brew](https://brew.sh/). Simply run `brew install katrain` and it will download and install the latest pre-built .app, and also install katago if needed.
 
-You can also find downloadable .app files for macOS [here](https://github.com/sanderland/katrain/releases). 
-Simply download, unzip the file, mount the .dmg and drag the .app file to your application folder, everything is included.
-The first time launching the application you may need to [control-click in finder to give permission for the 'unidentified' app to launch](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac). This is simply a result of Apple charging $99/year to developers to be 'identified'.
+You can also find downloadable macOS installers [here](https://github.com/sanderland/katrain/releases). Recent releases include both Intel (`KaTrain-*-x86_64.dmg`) and Apple Silicon (`KaTrain-*-arm64.dmg`) installers, so download the one matching your Mac. Mount the `.dmg` and drag the `.app` to your Applications folder.
 
-Users with the last generation M1 macs with different architecture should then `brew install katago` in addition to this. KaTrain will automatically detect this KataGo binary.
+The first time you launch the app, macOS may block it as an app from an unknown developer.
+Follow Apple's current guide [here](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac):
+1. Try opening the app once from Finder.
+2. Open `System Settings > Privacy & Security`.
+3. In the Security section, click `Open` and then `Open Anyway` for KaTrain.
+4. Enter your password to confirm.
+
+This is simply a result of Apple charging $99/year to developers to be 'identified'.
 
 ### <a name="MacCommand"></a>Command line install guide
 
@@ -54,7 +59,7 @@ Simply download and run, everything is included.
 ### <a name="WindowsSources"></a>Installation from sources
 
 * Download the repository by clicking the green *Clone or download* on this page and *Download zip*. Extract the contents.
-* Make sure you have a python installation, I will assume Anaconda (Python 3.9 or later), available [here](https://www.anaconda.com/products/individual#download-section).
+* Make sure you have a python installation, I will assume Anaconda (Python 3.10 or later), available [here](https://www.anaconda.com/products/individual#download-section).
 * Open 'Anaconda prompt' from the start menu and navigate to where you extracted the zip file using the `cd <folder>` command.
 * Execute the command `pip3 install .`
 * Start the app by running `katrain` in the command prompt. 
@@ -63,7 +68,7 @@ Simply download and run, everything is included.
 
 ### <a name="LinuxQuick"></a>Quick install guide
 
-If you have a working Python 3.9 or later available, you should be able to simply:
+If you have a working Python 3.10 or later available, you should be able to simply:
 
 * Run `pip3 install -U katrain` to install or upgrade.
 * Run the program by executing `katrain` in a terminal.
@@ -72,7 +77,7 @@ If you have a working Python 3.9 or later available, you should be able to simpl
 
 This section describes how to install KaTrain from sources,
  in case you want to run it in a local directory or have more control over the process. 
-It assumes you have a working Python 3.9+ installation.
+It assumes you have a working Python 3.10+ installation.
 
 * Open a terminal.
 * Run the command `git clone https://github.com/sanderland/katrain.git` to download the repository and 
