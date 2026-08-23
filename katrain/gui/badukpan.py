@@ -128,7 +128,7 @@ class BadukPanWidget(Widget):
                     if i <= upto:  # up to move when scrolling, or all
                         node = node.play(Move.from_gtp(gtpmove, node.next_player))
                         node.analyze(self.katrain.engine, analyze_fast=True)
-                self.katrain.controls.move_tree.redraw_tree_trigger()
+                self.katrain.controls.move_tree.redraw()
 
         if ("button" not in touch.profile) or (touch.button not in ["scrollup", "scrolldown", "middle"]):
             self.set_animating_pv(None, None)  # any click/touch kills PV from label/move

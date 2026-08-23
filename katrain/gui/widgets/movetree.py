@@ -29,6 +29,8 @@ class MoveTreeCanvas(Widget):
         super().__init__(**kwargs)
         self.move_pos = {}
         self.move_xy_pos = {}
+        self.node_children = {}
+        self._layout_key = None
         self.bind(menu_selected_node=lambda *_args: self.scroll_view_widget.redraw_tree_trigger())
         self.build_dropdown()
 
@@ -72,6 +74,7 @@ class MoveTreeCanvas(Widget):
     def delete_selected_node(self):
         selected_node = self.menu_selected_node or self.scroll_view_widget.current_node
         if selected_node and selected_node.parent:
+            self.invalidate_layout()
             if selected_node.shortcut_from:
                 parent = selected_node.shortcut_from
                 via = [v for m, v in parent.shortcuts_to if m == selected_node]
@@ -87,6 +90,7 @@ class MoveTreeCanvas(Widget):
     def prune_branch(self):
         selected_node = self.menu_selected_node
         if selected_node and selected_node.parent:
+            self.invalidate_layout()
             node = selected_node
             while node.parent is not None:
                 node.parent.children = [node]
@@ -97,6 +101,7 @@ class MoveTreeCanvas(Widget):
     def make_selected_node_main_branch(self):
         selected_node = self.menu_selected_node or self.scroll_view_widget.current_node
         if selected_node and selected_node.parent:
+            self.invalidate_layout()
             node = selected_node
             while node.parent is not None:
                 node.parent.children.remove(node)
@@ -115,6 +120,7 @@ class MoveTreeCanvas(Widget):
                 while len(node.children) == 1 and not node.is_root and not node.shortcut_from:
                     node = node.parent
                 node.add_shortcut(selected_node)
+            self.invalidate_layout()
             self.scroll_view_widget.redraw_tree_trigger()
 
     def switch_branch(self, direction=1):
@@ -127,6 +133,9 @@ class MoveTreeCanvas(Widget):
             return
         self.set_game_node(same_x_moves[new_index][1])
 
+    def invalidate_layout(self):
+        self._layout_key = None
+
     def draw_move_tree(self, current_node, insert_node):
         if not self.scroll_view_widget or not current_node:
             return
@@ -135,50 +144,58 @@ class MoveTreeCanvas(Widget):
         self.move_size = (self.scroll_view_widget.min_height - (moves_vert + 1) * spacing) / moves_vert
 
         root = current_node.root
+        layout_key = (id(root), self.move_size)
 
-        def children_with_shortcuts(move):
-            shortcuts = move.shortcuts_to
-            via = {v: m for m, v in shortcuts}  # children that are shortcut
-            return [m if m not in via else via[m] for m in move.ordered_children]
+        if self._layout_key != layout_key or current_node not in self.move_pos:
+            # full relayout: only when the tree structure (or node size) changed, not on every navigation
 
-        self.move_pos = {root: (0, 0)}
-        stack = children_with_shortcuts(root)[::-1]
-        next_y_pos = defaultdict(int)  # x pos -> max y pos
-        children = defaultdict(list)  # since AI self-play etc may modify the tree between layout and draw!
-        children[root] = [*stack]
-        while stack:
-            move = stack.pop()
-            if move.shortcut_from and move.shortcut_from in self.move_pos:  # ignore broken shortcuts
-                parent = move.shortcut_from
-            else:
-                parent = move.parent
+            def children_with_shortcuts(move):
+                shortcuts = move.shortcuts_to
+                via = {v: m for m, v in shortcuts}  # children that are shortcut
+                return [m if m not in via else via[m] for m in move.ordered_children]
 
-            if parent:
-                x = self.move_pos[parent][0] + 1
-            else:
-                x = 0
-            y = max(next_y_pos[x], self.move_pos[parent][1])
-            next_y_pos[x] = y + 1
-            next_y_pos[x - 1] = max(next_y_pos[x], next_y_pos[x - 1])
-            self.move_pos[move] = (x, y)
-            children[move] = children_with_shortcuts(move)
-            stack += children[move][::-1]  # stack, so push top child last to process first
+            self.move_pos = {root: (0, 0)}
+            stack = children_with_shortcuts(root)[::-1]
+            next_y_pos = defaultdict(int)  # x pos -> max y pos
+            children = defaultdict(list)  # since AI self-play etc may modify the tree between layout and draw!
+            children[root] = [*stack]
+            while stack:
+                move = stack.pop()
+                if move.shortcut_from and move.shortcut_from in self.move_pos:  # ignore broken shortcuts
+                    parent = move.shortcut_from
+                else:
+                    parent = move.parent
+
+                if parent:
+                    x = self.move_pos[parent][0] + 1
+                else:
+                    x = 0
+                y = max(next_y_pos[x], self.move_pos[parent][1])
+                next_y_pos[x] = y + 1
+                next_y_pos[x - 1] = max(next_y_pos[x], next_y_pos[x - 1])
+                self.move_pos[move] = (x, y)
+                children[move] = children_with_shortcuts(move)
+                stack += children[move][::-1]  # stack, so push top child last to process first
+
+            def coord_pos(coord):
+                return (coord + 0.5) * (spacing + self.move_size) + spacing / 2
+
+            self.width = coord_pos(max(x + 0.5 for x, y in self.move_pos.values()))
+            self.height = coord_pos(max(y + 0.5 for x, y in self.move_pos.values()))
+
+            def xy_pos(x, y):
+                return coord_pos(x), self.height - coord_pos(y)
+
+            self.move_xy_pos = {n: xy_pos(x, y) for n, (x, y) in self.move_pos.items()}
+            self.node_children = children
+            self._layout_key = layout_key
+
+        children = self.node_children
 
         def draw_stone(pos, player, special_color=None):
             draw_circle(pos, self.move_size / 2 - 0.5, (special_color or Theme.STONE_COLORS[player]))
             Color(*Theme.MOVE_TREE_STONE_OUTLINE_COLORS[player])
             Line(circle=(*pos, self.move_size / 2), width=1)
-
-        def coord_pos(coord):
-            return (coord + 0.5) * (spacing + self.move_size) + spacing / 2
-
-        self.width = coord_pos(max(x + 0.5 for x, y in self.move_pos.values()))
-        self.height = coord_pos(max(y + 0.5 for x, y in self.move_pos.values()))
-
-        def xy_pos(x, y):
-            return coord_pos(x), self.height - coord_pos(y)
-
-        self.move_xy_pos = {n: xy_pos(x, y) for n, (x, y) in self.move_pos.items()}
 
         special_nodes = {current_node: Theme.MOVE_TREE_CURRENT, self.menu_selected_node: Theme.MOVE_TREE_SELECTED}
 
@@ -191,15 +208,30 @@ class MoveTreeCanvas(Widget):
                 )
                 insert_path = insert_path.parent
 
+        # viewport culling: only emit canvas instructions for nodes/edges near the visible scroll region
+        sv = self.scroll_view_widget
+        margin = 2 * (self.move_size + spacing)
+        vx0 = sv.scroll_x * max(0, self.width - sv.width) - margin
+        vy0 = sv.scroll_y * max(0, self.height - sv.height) - margin
+        vx1 = vx0 + sv.width + 2 * margin
+        vy1 = vy0 + sv.height + 2 * margin
+
         with self.canvas:
             self.canvas.clear()
             Color(*Theme.MOVE_TREE_LINE)
             for node, (x, y) in self.move_xy_pos.items():
                 for ci, c in enumerate(children[node]):
-                    cx, cy = self.move_xy_pos[c]
+                    cxy = self.move_xy_pos.get(c)
+                    if cxy is None:  # tree changed under a cached layout; appears after next relayout
+                        continue
+                    cx, cy = cxy
+                    if max(x, cx) < vx0 or min(x, cx) > vx1 or max(y, cy) < vy0 or min(y, cy) > vy1:
+                        continue
                     Line(points=[x, y, x, cy, cx, cy], width=1)
 
             for node, pos in self.move_xy_pos.items():
+                if pos[0] < vx0 or pos[0] > vx1 or pos[1] < vy0 or pos[1] > vy1:
+                    continue
                 if node in special_nodes:
                     Color(*special_nodes[node])
                     Rectangle(
@@ -228,8 +260,10 @@ class MoveTree(ScrollView, BackgroundMixin):
             lambda _dt: self.move_tree_canvas.draw_move_tree(self.current_node, self.insert_node), 0.1
         )
         self.bind(current_node=self.redraw_tree_trigger, size=self.redraw_tree_trigger)
+        self.bind(scroll_x=self.redraw_tree_trigger, scroll_y=self.redraw_tree_trigger)  # culling: repaint newly exposed region
 
     def redraw(self):
+        self.move_tree_canvas.invalidate_layout()
         self.redraw_tree_trigger()
 
     def switch_branch(self, direction):
