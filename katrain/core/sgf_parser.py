@@ -468,28 +468,23 @@ class SGF:
             self.ix = self.contents.index("(") + 1
         except ValueError:
             raise ParseError(f"Parse error: Expected '(' at start, found {self.contents[:50]}")
-        self._last_nonws = len(self.contents.rstrip()) - 1  # index of final non-whitespace char, for the ';)' check
         self.root = self._NODE_CLASS()
         self._parse_branch(self.root)
 
     def _parse_branch(self, current_move: SGFNode):
         while self.ix < len(self.contents):
-            match = self.SGFPROP_PAT.match(self.contents, self.ix)  # match at pos: avoids copying the tail per token
+            match = re.match(self.SGFPROP_PAT, self.contents[self.ix :])
             if not match:
                 break
-            self.ix = match.end()
+            self.ix += len(match[0])
             matched_item = match[0].strip()
             if matched_item == ")":
                 return
             if matched_item == "(":
                 self._parse_branch(self._NODE_CLASS(parent=current_move))
             elif matched_item == ";":
-                # ignore ;) for old SGF -- O(1): ';' is useless iff the next
-                # non-whitespace character is the final ')' of the input
-                j = self.ix
-                while j < len(self.contents) and self.contents[j].isspace():
-                    j += 1
-                useless = j == self._last_nonws and self.contents[j] == ")"
+                # ignore ;) for old SGF
+                useless = self.ix < len(self.contents) and self.contents[self.ix :].strip() == ")"
                 # ignore ; that generate empty nodes
                 if not (current_move.empty or useless):
                     current_move = self._NODE_CLASS(parent=current_move)
